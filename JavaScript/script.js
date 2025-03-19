@@ -60,9 +60,6 @@ frame7.style.alignItems = "center"
 frame7.style.height = "70dvh"
 frame7.style.width = "100%"
 frame7.style.overflowY = "auto"
-frame7.addEventListener('scroll', () => {
-    localStorage.setItem('scrollPosition', frame7.scrollTop);
-})
 
 const frame8 = document.createElement('div')
 
@@ -393,12 +390,13 @@ text_input.addEventListener('input', function () {
         alert("¡Has alcanzado el límite de caracteres!");
     }
 })
-text_input.addEventListener('keydown', function (event) {
+text_input.addEventListener('keydown', async function (event) {
     // Si el usuario presiona Enter sin Shift
     if (event.key === 'Enter' && !event.shiftKey) {
         event.preventDefault()
-        console.log("Se presionó Enter sin Shift") // ACA SE AGREGA EL ENDPOINT POST
-        text_input.value = "";
+        await drawInput()
+        text_input.value = ""
+        await drawMessages()
         setTimeout(() => {
             frame7.scrollTop = text_input.scrollHeight
         }, 0)
@@ -445,12 +443,13 @@ card.style.width = '10%'
 card.style.height = '50%'
 card.style.background = 'linear-gradient(to right, #585fcf, #8b93f7)'
 card.style.borderRadius = '10px'
-card.addEventListener('input', function () {
-    // Al presionar enviar, el scroll baja hasta el nuevo mensaje
+card.addEventListener('click', async function () {
+    await drawInput()
+    text_input.value = ""
+    await drawMessages()
     setTimeout(() => {
         frame7.scrollTop = text_input.scrollHeight
     }, 0)
-    // ACÁ TAMBIÉN VA EL ENDPOINT POST
 })
 
 const card_paperplane = document.createElement('style')
@@ -524,24 +523,59 @@ messages_styles.textContent = messages_css
 // Añadir los estilos personalizados al Head del HTML
 document.head.appendChild(messages_styles)
 
+// Obtener los mensajes
+const getMessages = async () => {
+    const response = await fetch('https://chat.calicheoficial.lat/messages')
+    return await response.json()
+}
 
+// Publicar un mensaje
+const postMessage = async (message) => {
+    const body = JSON.stringify(message)
+    const response = await fetch(
+        'https://chat.calicheoficial.lat/messages',
+        {
+            method: 'POST',
+            body
+        }
+    )
+    return await response.json()
+}
 
-// Mensajes de prueba (SERAN BORRADOS)
-const ej1_message = document.createElement('li')
+// Pintar los mensajes en el contenedor
+const drawMessages = async () => {
+    const messages = await getMessages()
 
-ej1_message.classList.add("otherUser")
-ej1_message.textContent = "Hola, este es un mensaje de prueba. Estoy probando que pasa cuando el mensaje se vuelve más largo."
+    messages.forEach((message) => {
+        const chat_message = document.createElement('li')
 
-chat_container.appendChild(ej1_message)
+        const user = document.createElement('span')
+        user.append(`${message.user}: `)
 
-const ej5_message = document.createElement('li')
+        const text = document.createElement('span')
+        text.append(message.text)
 
-ej5_message.classList.add("myUser")
-ej5_message.textContent = "Hola, soy Sebas. Estoy haciendo este mensaje más largo para tener algo de scroll."
+        if (message.user == "Sebas Tunchez") {
+            chat_message.classList.add("myUser")
+        } else {
+            chat_message.classList.add("otherUser")
+        }
 
-chat_container.appendChild(ej5_message)
+        chat_message.append(user)
+        chat_message.append(text)
 
+        chat_container.append(chat_message)
+    })
+}
 
+const drawInput = async () => {
+    console.log('onclick')
+    const message = {
+        text: text_input.value,
+        user: 'Sebas Tunchez'
+    }
+    postMessage(message)
+}
 
 // Función para Responsiveness
 function handleResize() {
@@ -562,16 +596,10 @@ function handleResize() {
 // Detectar cambio de tamaño de pantalla
 window.addEventListener('resize', handleResize)
 
-// Función para restaurar la posición del scroll del chat
-function restoreScrollPosition() {
-    const savedScrollPosition = localStorage.getItem('scrollPosition');
-    if (savedScrollPosition) {
-        frame7.scrollTop = savedScrollPosition;  // Restaurar la posición
-    }
-}
-
-// Restaurar la posición del scroll del chat al cargar la página
-window.addEventListener('load', restoreScrollPosition);
+// Actualizar los mensajes cad 5 segundos
+setInterval(async () => {
+    await drawMessages();
+}, 5000);
 
 // Ejecutar al cargar la página
 handleResize()
